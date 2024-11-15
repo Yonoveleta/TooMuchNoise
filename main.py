@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 def get_charcodes(filename):
     charcodes = {}
@@ -16,6 +17,21 @@ def letters_to_bits(msg, charcodes):
         code += charcodes[letter]
     return code
 
+def apply_noise(bits, probability):
+    flip = {'0': '1', '1' : '0'}
+    bits_after_noise = ''
+    for bit in bits:
+        bits_after_noise += flip[bit] if random.random() < probability else bit
+        
+    return bits_after_noise
+
+   
 charcodes = get_charcodes('files/charactcodif.txt')
-print(letters_to_bits("cada", charcodes))
+coded = letters_to_bits("cada", charcodes)
+print(coded)
+
+print(apply_noise(coded, 0.04))
+
+
+
 
