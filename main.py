@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import itertools
 
 H_4_7 = np.array([
     [1, 0, 0, 0, 1, 1, 0],
@@ -67,6 +68,9 @@ def add_redundancy(bits, redundancy_matrix):
         bits_with_redundancy = np.concatenate((bits_with_redundancy, np.matmul(splitted_segment, redundancy_matrix) % 2))
     
     return bits_with_redundancy
+
+def get_nbits_combinations(n):
+    return list(itertools.product([0,1], repeat=n))
         
 charcodes = get_charcodes('files/charactcodif.txt')
 
@@ -78,3 +82,5 @@ print(bits_with_redundancy)
 
 bits_after_noise = apply_noise(bits_with_redundancy, 0.04)
 print(bits_after_noise)
+
+print(get_nbits_combinations(4))
