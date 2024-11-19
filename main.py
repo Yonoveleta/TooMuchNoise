@@ -73,12 +73,18 @@ def bits_to_chars(bits, charcodes):
 
 def add_redundancy(bits, redundancy_matrix):
     segment_size = len(redundancy_matrix)
-    segmented_bits = [bits[bit:bit+segment_size] for bit in range(0, len(bits), segment_size)]
+    segmented_bits = segment_bits(bits, segment_size)
+    extra_bits_needed = segment_size - (len(bits) % segment_size)
     bits_with_redundancy = np.array([], dtype=np.uint8)
+    
+    if extra_bits_needed != segment_size:
+        for i in range(extra_bits_needed):
+            segmented_bits[-1] += '0'
+    
     for segment in segmented_bits:
         splitted_segment = bits_to_array(segment)
         bits_with_redundancy = np.concatenate((bits_with_redundancy, np.matmul(splitted_segment, redundancy_matrix) % 2))
-    
+        
     return bits_with_redundancy
 
 def get_nbits_combinations(n):
@@ -106,6 +112,7 @@ def retrieve_information(received_bits, redundancy_matrix):
     
     non_redundant_bits = np.array([], dtype=np.uint8)
     for segment in segmented_bits:
+        print(possible_segments)
         non_redundant_bits = np.concatenate((non_redundant_bits, get_most_similar_segment(segment, possible_segments)[:original_segment_size]))
         
     return non_redundant_bits
@@ -113,7 +120,8 @@ def retrieve_information(received_bits, redundancy_matrix):
         
 charcodes = get_charcodes('files/charactcodif.txt')
 
-bits = chars_to_bits("cada", charcodes)
+user_input = input("Introduce un mensaje: ")
+bits = chars_to_bits(user_input, charcodes)
 
 bits_with_redundancy = add_redundancy(bits, H_4_7)
 
