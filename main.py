@@ -1,6 +1,8 @@
 import numpy as np
 import random
 import itertools
+from numpy.linalg import norm
+import re
 
 H_4_7 = np.array([
     [1, 0, 0, 0, 1, 1, 0],
@@ -24,6 +26,10 @@ G_12_23 = np.array([
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
 ], dtype=np.uint8)
 
+def segment_bits(bits, segment_size):
+    return [bits[bit:bit+segment_size] for bit in range(0, len(bits), segment_size)]
+    
+
 def get_charcodes(filename):
     charcodes = {}
 
@@ -34,7 +40,7 @@ def get_charcodes(filename):
     return charcodes
 
 def chars_to_bits(msg, charcodes):
-    code = ""
+    code = ''
     for letter in msg:
         code += charcodes[letter]
     return code
@@ -51,13 +57,19 @@ def bits_to_array(bits):
     return np.array([np.uint8(bit) for bit in bits], dtype=np.uint8)
 
 def bits_to_chars(bits, charcodes):
-    bit_size = len(charcodes[next(iter(charcodes))])
-    splitted_bits = [bits[bit:bit+bit_size] for bit in range(0, len(bits), bit_size)]
+    segment_size = len(charcodes[next(iter(charcodes))])
+    segmented_bits = segment_bits(bits, segment_size)
 
     charcodes_chars = list(charcodes.keys())
     charcodes_bits = list(charcodes.values())
-
-    return ''.join([charcodes_chars[charcodes_bits.index(bits)] for bits in splitted_bits])
+    
+    original_chars = ''
+    
+    for current_bits in segmented_bits:
+        stringified_bits = re.sub(r'[\[\]\s]', '', np.array2string(current_bits))
+        original_chars += charcodes_chars[charcodes_bits.index(stringified_bits)]
+        
+    return original_chars
 
 def add_redundancy(bits, redundancy_matrix):
     segment_size = len(redundancy_matrix)
@@ -71,16 +83,44 @@ def add_redundancy(bits, redundancy_matrix):
 
 def get_nbits_combinations(n):
     return list(itertools.product([0,1], repeat=n))
+
+def get_most_similar_segment(segment, possible_segments):
+    cosine_similarity = 0
+    most_similar_segment = None
+    
+    for possible_segment in possible_segments[1:]:
+        cosine = np.dot(segment, possible_segment)/(norm(segment)*norm(possible_segment))
+        if cosine > cosine_similarity:
+            cosine_similarity = cosine
+            most_similar_segment = possible_segment
+    
+    return most_similar_segment
+
+def retrieve_information(received_bits, redundancy_matrix):
+    segment_size = len(redundancy_matrix[0])
+    segmented_bits = segment_bits(received_bits, segment_size)
+    
+    original_segment_size = len(redundancy_matrix)
+    possible_original_segments = get_nbits_combinations(original_segment_size)
+    possible_segments = [np.matmul(possible_original_segments[segment], redundancy_matrix) % 2 for segment in range(len(possible_original_segments))]
+    
+    non_redundant_bits = np.array([], dtype=np.uint8)
+    for segment in segmented_bits:
+        non_redundant_bits = np.concatenate((non_redundant_bits, get_most_similar_segment(segment, possible_segments)[:original_segment_size]))
+        
+    return non_redundant_bits
+    
         
 charcodes = get_charcodes('files/charactcodif.txt')
 
 bits = chars_to_bits("cada", charcodes)
-print(bits)
 
 bits_with_redundancy = add_redundancy(bits, H_4_7)
-print(bits_with_redundancy)
 
 bits_after_noise = apply_noise(bits_with_redundancy, 0.04)
-print(bits_after_noise)
 
-print(get_nbits_combinations(4))
+retrieved_bits = retrieve_information(bits_after_noise, H_4_7)
+
+original_chars = bits_to_chars(retrieved_bits, charcodes)
+
+print(original_chars)
